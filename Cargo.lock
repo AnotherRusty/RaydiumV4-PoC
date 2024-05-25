@@ -2887,6 +2887,7 @@ dependencies = [
  "serde_json",
  "serum_dex",
  "solana-client",
+ "solana-program",
  "solana-sdk",
  "solana-transaction-status",
  "spl-associated-token-account",
