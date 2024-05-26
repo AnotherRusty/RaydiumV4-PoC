@@ -4,6 +4,8 @@ use amm::{openbooks, utils::AmmKeys, utils::CalculateMethod, utils::CalculateRes
 use anyhow::Result;
 use arrayref::array_ref;
 use common::rpc;
+// use common::state::AmmInfo;
+// use raydium_amm::state::AmmInfo;
 // use raydium_amm::math::{CheckedCeilDiv, U128};
 use safe_transmute::{to_bytes::transmute_to_bytes, transmute_one_pedantic};
 use solana_client::rpc_client::RpcClient;
@@ -11,7 +13,6 @@ use solana_program::{account_info::IntoAccountInfo, program_pack::Pack};
 use solana_sdk::{
     commitment_config::CommitmentConfig, message::Message, pubkey::Pubkey, transaction::Transaction,
 };
-
 
 pub const TEN_THOUSAND: u64 = 10000;
 
@@ -40,11 +41,11 @@ pub fn calculate_pool_vault_amounts(
             let accounts = array_ref![rsps, 0, 7];
             let [amm_account, amm_target_account, amm_pc_vault_account, amm_coin_vault_account, amm_open_orders_account, market_account, market_event_q_account] =
                 accounts;
-            let amm: raydium_amm::state::AmmInfo =
-                transmute_one_pedantic::<raydium_amm::state::AmmInfo>(transmute_to_bytes(
-                    &amm_account.as_ref().unwrap().clone().data,
-                ))
-                .map_err(|e| e.without_src())?;
+            // let amm = transmute_one_pedantic::<raydium_amm::state::AmmInfo>(transmute_to_bytes(
+            //     &amm_account.as_ref().unwrap().clone().data,
+            // ))
+            // .map_err(|e| e.without_src())?;
+            let amm = rpc::get_account::<raydium_amm::state::AmmInfo>(client, &amm_pool)?.unwrap();
             let _amm_target: raydium_amm::state::TargetOrders =
                 transmute_one_pedantic::<raydium_amm::state::TargetOrders>(transmute_to_bytes(
                     &amm_target_account.as_ref().unwrap().clone().data,
