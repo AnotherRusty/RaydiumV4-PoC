@@ -2,6 +2,7 @@ use crate::common;
 use anyhow::Result;
 
 use common::rpc;
+use common::AmmInfo;
 use solana_sdk::pubkey::Pubkey;
 use solana_client::rpc_client::RpcClient;
 
@@ -40,8 +41,8 @@ pub fn load_amm_keys(
     amm_program: &Pubkey,
     amm_pool: &Pubkey,
 ) -> Result<AmmKeys> {
-    let amm = rpc::get_account::<raydium_amm::state::AmmInfo>(client, &amm_pool)?.unwrap();
-    // println!("amm: {:?}", amm);
+    // let amm = rpc::get_account::<raydium_amm::state::AmmInfo>(client, &amm_pool)?.unwrap();
+    let amm: AmmInfo = rpc::get_account::<AmmInfo>(&client, &amm_pool)?.unwrap();
     Ok(AmmKeys {
         amm_pool: *amm_pool,
         amm_target: amm.target_orders,
