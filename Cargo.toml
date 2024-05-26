@@ -1,5 +1,5 @@
 [package]
-name = "raydiumbot"
+name = "rust-BE"
 version = "0.1.0"
 edition = "2021"
 

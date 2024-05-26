@@ -2869,34 +2869,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "raydiumbot"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "arrayref",
- "base64 0.13.1",
- "bincode",
- "bs58 0.4.0",
- "bytemuck",
- "debug_print",
- "rand 0.7.3",
- "raydium-amm-v3",
- "raydium_amm",
- "safe-transmute",
- "serde",
- "serde_json",
- "serum_dex",
- "solana-client",
- "solana-program",
- "solana-sdk",
- "solana-transaction-status",
- "spl-associated-token-account",
- "spl-token 4.0.0",
- "spl-token-2022 0.9.0",
- "uint",
-]
-
-[[package]]
 name = "rayon"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3080,6 +3052,34 @@ checksum = "c247d24e63230cdb56463ae328478bd5eac8b8faa8c69461a77e8e323afac90e"
 dependencies = [
  "libc",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "rust-BE"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arrayref",
+ "base64 0.13.1",
+ "bincode",
+ "bs58 0.4.0",
+ "bytemuck",
+ "debug_print",
+ "rand 0.7.3",
+ "raydium-amm-v3",
+ "raydium_amm",
+ "safe-transmute",
+ "serde",
+ "serde_json",
+ "serum_dex",
+ "solana-client",
+ "solana-program",
+ "solana-sdk",
+ "solana-transaction-status",
+ "spl-associated-token-account",
+ "spl-token 4.0.0",
+ "spl-token-2022 0.9.0",
+ "uint",
 ]
 
 [[package]]
