@@ -11,7 +11,7 @@ use std::str::FromStr;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;
 
-fn get_pool_pda(amm_program: Pubkey, amm_pool: Pubkey, cluster_url: &str) -> Result<()> {
+fn get_pool_pda_data_on_raydium(amm_program: Pubkey, amm_pool: Pubkey, cluster_url: &str) -> Result<()> {
     let client = RpcClient::new(cluster_url.to_string());
     let amm_info: common::AmmInfo =
         common::rpc::get_account::<common::AmmInfo>(&client, &amm_pool)?.unwrap();
@@ -28,7 +28,6 @@ fn get_pool_pda(amm_program: Pubkey, amm_pool: Pubkey, cluster_url: &str) -> Res
         &amm_pool,
         &amm_keys,
         &market_keys,
-        amm::utils::CalculateMethod::CalculateWithLoadAccount,
     )?;
     let quote_token_amount: u64 = calculate_result.pool_pc_vault_amount;
     let quote_token_amount_f64: f64 = quote_token_amount as f64;
@@ -43,12 +42,16 @@ fn get_pool_pda(amm_program: Pubkey, amm_pool: Pubkey, cluster_url: &str) -> Res
     Ok(())
 }
 
+fn get_whirlpool_data_on_orca() {
+      println!("Hello world")
+}
+
 fn main() -> Result<()> {
     let cluster_url = "https://api.mainnet-beta.solana.com/";
     let amm_program = Pubkey::from_str("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8")?;
     let amm_pool = Pubkey::from_str("AVs9TA4nWDzfPJE9gGVNJMVhcQy3V9PGazuz33BfG2RA")?;
 
-    get_pool_pda(amm_program, amm_pool, &cluster_url)?;
+    get_pool_pda_data_on_raydium(amm_program, amm_pool, &cluster_url)?;
 
     Ok(())
 }
