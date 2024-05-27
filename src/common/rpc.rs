@@ -24,3 +24,10 @@ pub fn get_multiple_accounts(
 ) -> Result<Vec<Option<Account>>> {
     Ok(client.get_multiple_accounts(pubkeys)?)
 }
+
+// pub fn get_whirlpool_data(pubkey_string: &String, account_map: &AccountMap) -> Whirlpool {
+//     let data = account_map.get(pubkey_string).unwrap();
+//     let whirlpool_data =
+//         whirlpool_base::state::Whirlpool::try_deserialize(&mut data.as_slice()).unwrap();
+//     return whirlpool_data;
+// }

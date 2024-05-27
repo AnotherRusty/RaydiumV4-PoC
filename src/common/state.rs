@@ -2,6 +2,9 @@ use solana_sdk::pubkey::Pubkey;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default, PartialEq, Debug)]
+/**
+ * AMM Pool State for Raydium
+ */
 pub struct AmmInfo {
     /// Initialized status.
     pub status: u64,
