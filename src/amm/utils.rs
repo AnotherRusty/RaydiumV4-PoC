@@ -1,14 +1,13 @@
 use crate::common;
-use anyhow::Result;
 
-use common::rpc;
-use common::AmmInfo;
+use anyhow::Result;
 use solana_sdk::pubkey::Pubkey;
-use solana_client::rpc_client::RpcClient;
+
+use common::AmmInfo;
 
 #[derive(Clone, Copy, Debug)]
 pub struct AmmKeys {
-    pub amm_pool: Pubkey,
+    pub amm_pool_key: Pubkey,
     pub amm_coin_mint: Pubkey,
     pub amm_pc_mint: Pubkey,
     pub amm_authority: Pubkey,
@@ -22,11 +21,6 @@ pub struct AmmKeys {
     pub nonce: u8,
 }
 
-pub enum CalculateMethod {
-    CalculateWithLoadAccount,
-    Simulate(Pubkey),
-}
-
 #[derive(Clone, Copy, Debug)]
 pub struct CalculateResult {
     pub pool_pc_vault_amount: u64,
@@ -36,29 +30,38 @@ pub struct CalculateResult {
     pub swap_fee_denominator: u64,
 }
 
+/**
+ * load amm keys
+ *
+ * # Arguments
+ *
+ * * 'amm_info' - RaydiumV3 amm pool info
+ * * 'amm_program_key' - RaydiumV3 program address
+ * * 'amm_pool_key' - Raydium pool id
+ *
+ * # Returns
+ */
 pub fn load_amm_keys(
-    client: &RpcClient,
-    amm_program: &Pubkey,
-    amm_pool: &Pubkey,
+    amm_program_key: &Pubkey,
+    amm_pool_key: &Pubkey,
+    amm_info: &AmmInfo,
 ) -> Result<AmmKeys> {
-    // let amm = rpc::get_account::<raydium_amm::state::AmmInfo>(client, &amm_pool)?.unwrap();
-    let amm: AmmInfo = rpc::get_account::<AmmInfo>(&client, &amm_pool)?.unwrap();
     Ok(AmmKeys {
-        amm_pool: *amm_pool,
-        amm_target: amm.target_orders,
-        amm_coin_vault: amm.coin_vault,
-        amm_pc_vault: amm.pc_vault,
-        amm_lp_mint: amm.lp_mint,
-        amm_open_order: amm.open_orders,
-        amm_coin_mint: amm.coin_vault_mint,
-        amm_pc_mint: amm.pc_vault_mint,
+        amm_pool_key: *amm_pool_key,
+        amm_target: amm_info.target_orders,
+        amm_coin_vault: amm_info.coin_vault,
+        amm_pc_vault: amm_info.pc_vault,
+        amm_lp_mint: amm_info.lp_mint,
+        amm_open_order: amm_info.open_orders,
+        amm_coin_mint: amm_info.coin_vault_mint,
+        amm_pc_mint: amm_info.pc_vault_mint,
         amm_authority: raydium_amm::processor::Processor::authority_id(
-            amm_program,
+            amm_program_key,
             raydium_amm::processor::AUTHORITY_AMM,
-            amm.nonce as u8,
+            amm_info.nonce as u8,
         )?,
-        market: amm.market,
-        market_program: amm.market_program,
-        nonce: amm.nonce as u8,
+        market: amm_info.market,
+        market_program: amm_info.market_program,
+        nonce: amm_info.nonce as u8,
     })
 }

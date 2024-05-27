@@ -12,6 +12,7 @@ use std::{
     borrow::Cow,
     convert::{identity, TryFrom},
 };
+
 #[derive(Debug)]
 pub struct MarketPubkeys {
     pub market: Box<Pubkey>,
@@ -64,7 +65,6 @@ pub fn get_keys_for_market<'a>(
     market: &'a Pubkey,
 ) -> Result<MarketPubkeys> {
     let account_data: Vec<u8> = client.get_account_data(&market)?;
-    println!("account_data:{:?}", account_data);
     let words: Cow<[u64]> = remove_dex_account_padding(&account_data)?;
     let market_state: MarketState = {
         let account_flags = Market::account_flags(&account_data)?;
@@ -75,14 +75,15 @@ pub fn get_keys_for_market<'a>(
             state.check_flags(true)?;
             state.inner
         } else {
-            println!("MarketStateV");
-            let state = transmute_one_pedantic::<MarketState>(transmute_to_bytes(&words))
-                .map_err(|e| e.without_src())?;
+            println!("MarketStateV1");
+            let state: MarketState =
+                transmute_one_pedantic::<MarketState>(transmute_to_bytes(&words))
+                    .map_err(|e| e.without_src())?;
             state.check_flags(true)?;
             state
         }
     };
-    let vault_signer_key =
+    let vault_signer_key: Pubkey =
         gen_vault_signer_key(market_state.vault_signer_nonce, market, program_id)?;
     assert_eq!(
         transmute_to_bytes(&identity(market_state.own_address)),
