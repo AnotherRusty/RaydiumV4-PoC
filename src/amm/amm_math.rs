@@ -23,6 +23,22 @@ use spl_token::state::Account;
 
 pub const TEN_THOUSAND: u64 = 10000;
 
+/**
+ * calculate pool valut amounts
+ *
+ * # Arguments
+ *
+ * * 'client' - solana mainnet rpc url
+ * * 'amm_program_key' - RaydiumV3 amm program address
+ * * 'amm_pool_key' - amm pool id
+ * * 'amm_keys' - amm keys
+ * * 'market_keys' - market keys
+ *
+ * # Returns
+ * 
+ * * 'market keys'
+ */
+
 pub fn calculate_pool_vault_amounts(
     client: &RpcClient,
     amm_program_key: &Pubkey,

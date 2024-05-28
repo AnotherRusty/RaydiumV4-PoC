@@ -58,10 +58,24 @@ fn remove_dex_account_padding<'a>(data: &'a [u8]) -> Result<Cow<'a, [u64]>> {
     Ok(words)
 }
 
+
+/**
+ * get keys from market
+ *
+ * # Arguments
+ *
+ * * 'client' - solana mainnet rpc url
+ * * 'market_key' - RaydiumV3 market address
+ * * 'market' - RaydiumV3 market
+ *
+ * # Returns
+ * 
+ * * 'market keys'
+ */
 #[cfg(target_endian = "little")]
 pub fn get_keys_for_market<'a>(
     client: &'a RpcClient,
-    program_id: &'a Pubkey,
+    market_key: &'a Pubkey,
     market: &'a Pubkey,
 ) -> Result<MarketPubkeys> {
     let account_data: Vec<u8> = client.get_account_data(&market)?;
@@ -84,7 +98,7 @@ pub fn get_keys_for_market<'a>(
         }
     };
     let vault_signer_key: Pubkey =
-        gen_vault_signer_key(market_state.vault_signer_nonce, market, program_id)?;
+        gen_vault_signer_key(market_state.vault_signer_nonce, market, market_key)?;
     assert_eq!(
         transmute_to_bytes(&identity(market_state.own_address)),
         market.as_ref()
