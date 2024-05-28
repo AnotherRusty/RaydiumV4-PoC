@@ -12,7 +12,11 @@ use common::{get_account, AmmInfo};
 use anyhow::Result;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;
-use std::str::FromStr;
+
+pub struct PoolTokenPairResult {
+    pub base_toke_price: f64,
+    pub liquidity: f64,
+}
 
 /**
  * calculate the pool pda data by pool id
@@ -25,11 +29,11 @@ use std::str::FromStr;
  *
  * # Returns
  */
-fn get_pool_pda_data_on_raydium(
+pub fn get_pool_pda_data_on_raydium(
     amm_program_key: Pubkey,
     amm_pool_key: Pubkey,
     cluster_url: &str,
-) -> Result<(f64, f64)> {
+) -> Result<PoolTokenPairResult> {
     let client: RpcClient = RpcClient::new(cluster_url.to_string());
     let amm_info: AmmInfo = get_account::<AmmInfo>(&client, &amm_pool_key)?.unwrap();
     let amm_keys: AmmKeys = load_amm_keys(&amm_program_key, &amm_pool_key, &amm_info).unwrap();
@@ -51,18 +55,8 @@ fn get_pool_pda_data_on_raydium(
     let liqudity_as_quote_token: f64 =
         quote_token_amount / (10_f64.powf(quote_token_decimal)) * 2_f64;
 
-    Ok((base_toke_price, liqudity_as_quote_token))
-}
-
-fn main() -> Result<()> {
-    let cluster_url: &str = "https://api.mainnet-beta.solana.com/";
-    let amm_program_key: Pubkey = Pubkey::from_str("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8")?;
-    let amm_pool_key: Pubkey = Pubkey::from_str("AVs9TA4nWDzfPJE9gGVNJMVhcQy3V9PGazuz33BfG2RA")?;
-
-    println!(
-        "{:?}",
-        get_pool_pda_data_on_raydium(amm_program_key, amm_pool_key, &cluster_url)
-    );
-
-    Ok(())
+    Ok(PoolTokenPairResult {
+        base_toke_price: base_toke_price,
+        liquidity: liqudity_as_quote_token,
+    })
 }

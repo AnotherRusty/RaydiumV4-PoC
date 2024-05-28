@@ -1,0 +1,11 @@
+[package]
+name = "rust-BE"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+raydium_amm_poc = { path = "../raydium_amm_poc"}
+anchor-lang = { workspace = true }
+solana-client = { workspace = true }
+solana-sdk = { workspace = true }
+anyhow = "1.0.53"
