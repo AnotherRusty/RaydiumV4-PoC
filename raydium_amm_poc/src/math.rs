@@ -14,7 +14,7 @@ use spl_token::state::Account;
 
 use crate::processor::load_serum_market_order;
 use crate::state::{get_account, get_keys_for_market, get_multiple_accounts, load_amm_keys};
-use crate::types::{AmmInfo, AmmKeys, CalculateResult, MarketPubkeys, PoolTokenPairResult};
+use crate::types::{AmmInfo, AmmKeys, CalculateResult, MarketPubkeys, PoolTokenPairResult, SwapDirection};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PoolCalculator {}
@@ -186,5 +186,99 @@ impl PoolCalculator {
             base_toke_price: base_toke_price,
             liquidity: liqudity_as_quote_token,
         })
+    }
+
+    pub fn calc_swap_token_amount_base_in(
+        client: &RpcClient,
+        amm_program_key: &Pubkey,
+        amm_pool_key: &Pubkey,
+        amount_in: f64,
+        swap_direction: SwapDirection,
+    ) -> Result<f64> {
+        let amm_info: AmmInfo = get_account::<AmmInfo>(&client, &amm_pool_key)?.unwrap();
+        let amm_keys: AmmKeys = load_amm_keys(&amm_program_key, &amm_pool_key, &amm_info).unwrap();
+        let market_keys: MarketPubkeys =
+            get_keys_for_market(&client, &amm_keys.market_program, &amm_keys.market)?;
+        let calculate_result: CalculateResult = Self::calc_pool_valut_amounts(
+            &client,
+            &amm_program_key,
+            &amm_pool_key,
+            &amm_keys,
+            &market_keys,
+            &amm_info,
+        )?;
+        let total_pc_without_take_pnl: f64 = calculate_result.pool_pc_vault_amount as f64;
+        let total_coin_without_take_pnl: f64 = calculate_result.pool_coin_vault_amount as f64;
+        let amount_out;
+        match swap_direction {
+            SwapDirection::Coin2PC => {
+                // (x + delta_x) * (y + delta_y) = x * y
+                // (coin + amount_in) * (pc - amount_out) = coin * pc
+                // => amount_out = pc - coin * pc / (coin + amount_in)
+                // => amount_out = ((pc * coin + pc * amount_in) - coin * pc) / (coin + amount_in)
+                // => amount_out =  pc * amount_in / (coin + amount_in)
+                let denominator = total_coin_without_take_pnl + amount_in;
+                amount_out = (total_pc_without_take_pnl * amount_in) / denominator / (10_f64.powf((amm_info.pc_decimals - amm_info.coin_decimals) as f64));
+            }
+            SwapDirection::PC2Coin => {
+                // (x + delta_x) * (y + delta_y) = x * y
+                // (pc + amount_in) * (coin - amount_out) = coin * pc
+                // => amount_out = coin - coin * pc / (pc + amount_in)
+                // => amount_out = (coin * pc + coin * amount_in - coin * pc) / (pc + amount_in)
+                // => amount_out = coin * amount_in / (pc + amount_in)
+                let denominator = total_pc_without_take_pnl + amount_in;
+                amount_out = (total_coin_without_take_pnl * amount_in) / denominator * (10_f64.powf((amm_info.pc_decimals - amm_info.coin_decimals) as f64));
+            }
+        }
+        Ok(amount_out)
+    }
+
+    pub fn calc_swap_token_amount_base_out(
+        client: &RpcClient,
+        amm_program_key: &Pubkey,
+        amm_pool_key: &Pubkey,
+        amount_out: f64,
+        swap_direction: SwapDirection,
+    ) -> Result<f64> {
+        let amm_info: AmmInfo = get_account::<AmmInfo>(&client, &amm_pool_key)?.unwrap();
+        let amm_keys: AmmKeys = load_amm_keys(&amm_program_key, &amm_pool_key, &amm_info).unwrap();
+        let market_keys: MarketPubkeys =
+            get_keys_for_market(&client, &amm_keys.market_program, &amm_keys.market)?;
+        let calculate_result: CalculateResult = Self::calc_pool_valut_amounts(
+            &client,
+            &amm_program_key,
+            &amm_pool_key,
+            &amm_keys,
+            &market_keys,
+            &amm_info,
+        )?;
+        let total_pc_without_take_pnl: f64 = calculate_result.pool_pc_vault_amount as f64;
+        let total_coin_without_take_pnl: f64 = calculate_result.pool_coin_vault_amount as f64;
+        let amount_in;
+        match swap_direction {
+            SwapDirection::Coin2PC => {
+                // (x + delta_x) * (y + delta_y) = x * y
+                // (coin + amount_in) * (pc - amount_out) = coin * pc
+                // => amount_in = coin * pc / (pc - amount_out) - coin
+                // => amount_in = (coin * pc - pc * coin + amount_out * coin) / (pc - amount_out)
+                // => amount_in = (amount_out * coin) / (pc - amount_out)
+                let denominator = total_pc_without_take_pnl - amount_out;
+                amount_in = (total_coin_without_take_pnl * amount_out) / denominator * (10_f64.powf((amm_info.pc_decimals - amm_info.coin_decimals) as f64));
+            }
+            SwapDirection::PC2Coin => {
+                // (x + delta_x) * (y + delta_y) = x * y
+                // (pc + amount_in) * (coin - amount_out) = coin * pc
+                // => amount_out = coin - coin * pc / (pc + amount_in)
+                // => amount_out = (coin * pc + coin * amount_in - coin * pc) / (pc + amount_in)
+                // => amount_out = coin * amount_in / (pc + amount_in)
+
+                // => amount_in = coin * pc / (coin - amount_out) - pc
+                // => amount_in = (coin * pc - pc * coin + pc * amount_out) / (coin - amount_out)
+                // => amount_in = (pc * amount_out) / (coin - amount_out)
+                let denominator = total_coin_without_take_pnl - amount_out;
+                amount_in = (total_pc_without_take_pnl * amount_out) / denominator / (10_f64.powf((amm_info.pc_decimals - amm_info.coin_decimals) as f64));
+            }
+        }
+        Ok(amount_in)
     }
 }

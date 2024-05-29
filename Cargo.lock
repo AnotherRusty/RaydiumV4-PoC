@@ -2878,6 +2878,7 @@ dependencies = [
  "solana-sdk",
  "spl-associated-token-account",
  "spl-token 4.0.0",
+ "uint",
 ]
 
 [[package]]

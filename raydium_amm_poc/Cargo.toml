@@ -28,3 +28,4 @@ solana-sdk = { workspace = true }
 anyhow = "1.0.53"
 safe-transmute = "0.11.2"
 arrayref = "0.3.6"
+uint = "0.9.5"
