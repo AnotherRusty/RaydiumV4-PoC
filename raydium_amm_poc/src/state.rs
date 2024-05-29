@@ -1,32 +1,64 @@
-#![allow(dead_code)]
-
+use crate::types::{AmmInfo, AmmKeys, MarketPubkeys};
 use anyhow::{format_err, Result};
+use raydium_amm::{processor, processor::Processor};
 use safe_transmute::{
     to_bytes::{transmute_one_to_bytes, transmute_to_bytes},
     transmute_many_pedantic, transmute_one_pedantic,
 };
 use serum_dex::state::{gen_vault_signer_key, AccountFlag, Market, MarketState, MarketStateV2};
 use solana_client::rpc_client::RpcClient;
-use solana_sdk::pubkey::Pubkey;
+use solana_sdk::{account::Account, commitment_config::CommitmentConfig, pubkey::Pubkey};
 use std::{
     borrow::Cow,
     convert::{identity, TryFrom},
 };
 
-#[derive(Debug)]
-pub struct MarketPubkeys {
-    pub market: Box<Pubkey>,
-    pub req_q: Box<Pubkey>,
-    pub event_q: Box<Pubkey>,
-    pub bids: Box<Pubkey>,
-    pub asks: Box<Pubkey>,
-    pub coin_vault: Box<Pubkey>,
-    pub pc_vault: Box<Pubkey>,
-    pub vault_signer_key: Box<Pubkey>,
-    pub coin_mint: Box<Pubkey>,
-    pub pc_mint: Box<Pubkey>,
-    pub coin_lot_size: u64,
-    pub pc_lot_size: u64,
+pub fn get_multiple_accounts(
+    client: &RpcClient,
+    pubkeys: &[Pubkey],
+) -> Result<Vec<Option<Account>>> {
+    Ok(client.get_multiple_accounts(pubkeys)?)
+}
+
+pub fn get_account<T>(client: &RpcClient, amm_pool_key: &Pubkey) -> Result<Option<T>>
+where
+    T: Clone,
+{
+    if let Some(account) = client
+        .get_account_with_commitment(amm_pool_key, CommitmentConfig::processed())?
+        .value
+    {
+        let account_data = account.data.as_slice();
+        let ret = unsafe { &*(&account_data[0] as *const u8 as *const T) };
+        Ok(Some(ret.clone()))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn load_amm_keys(
+    amm_program_key: &Pubkey,
+    amm_pool_key: &Pubkey,
+    amm_info: &AmmInfo,
+) -> Result<AmmKeys> {
+    Ok(AmmKeys {
+        amm_pool_key: *amm_pool_key,
+        amm_target: amm_info.target_orders,
+        amm_coin_vault: amm_info.coin_vault,
+        amm_pc_vault: amm_info.pc_vault,
+        amm_lp_mint: amm_info.lp_mint,
+        amm_open_order: amm_info.open_orders,
+        amm_coin_mint: amm_info.coin_vault_mint,
+        amm_pc_mint: amm_info.pc_vault_mint,
+        amm_authority: Processor::authority_id(
+            amm_program_key,
+            processor::AUTHORITY_AMM,
+            amm_info.nonce as u8,
+        )?,
+        market: amm_info.market,
+        market_program: amm_info.market_program,
+        nonce: amm_info.nonce as u8,
+    })
 }
 
 #[cfg(target_endian = "little")]
@@ -58,20 +90,6 @@ fn remove_dex_account_padding<'a>(data: &'a [u8]) -> Result<Cow<'a, [u64]>> {
     Ok(words)
 }
 
-
-/**
- * get keys from market
- *
- * # Arguments
- *
- * * 'client' - solana mainnet rpc url
- * * 'market_key' - RaydiumV3 market address
- * * 'market' - RaydiumV3 market
- *
- * # Returns
- * 
- * * 'market keys'
- */
 #[cfg(target_endian = "little")]
 pub fn get_keys_for_market<'a>(
     client: &'a RpcClient,
