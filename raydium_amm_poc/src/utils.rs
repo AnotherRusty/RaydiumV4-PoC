@@ -36,7 +36,7 @@ where
     }
 }
 
-pub fn load_amm_keys(
+pub fn get_amm_keys(
     amm_program_key: &Pubkey,
     amm_pool_key: &Pubkey,
     amm_info: &AmmInfo,

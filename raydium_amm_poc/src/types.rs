@@ -44,7 +44,9 @@ pub struct MarketPubkeys {
 #[derive(Clone, Copy, Debug)]
 pub struct CalculateResult {
     pub pool_pc_vault_amount: u64,
+    pub pool_pc_decimals: u64,
     pub pool_coin_vault_amount: u64,
+    pub pool_coin_decimals: u64,
     pub pool_lp_amount: u64,
     pub swap_fee_numerator: u64,
     pub swap_fee_denominator: u64,
@@ -166,8 +168,4 @@ pub struct Fees {
     pub swap_fee_numerator: u64,
     /// denominator of the swap_fee
     pub swap_fee_denominator: u64,
-}
-pub struct PoolTokenPairResult {
-    pub base_toke_price: f64,
-    pub liquidity: f64,
 }
