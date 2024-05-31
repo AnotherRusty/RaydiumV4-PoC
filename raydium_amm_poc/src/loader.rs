@@ -92,6 +92,7 @@ impl PoolLoader {
         let amm_coin_vault = Account::unpack(&amm_coin_vault_account.as_ref().unwrap().clone().data).unwrap();
         let (amm_pool_pc_vault_amount, amm_pool_coin_vault_amount) =
             if AmmStatus::from_u64(amm.status).orderbook_permission() {
+                // println!("AMM + OpenBook");
                 let amm_open_orders_account =
                     &mut amm_open_orders_account.as_ref().unwrap().clone();
                 let market_account = &mut market_account.as_ref().unwrap().clone();
@@ -137,6 +138,7 @@ impl PoolLoader {
                     )?;
                 (amm_pool_pc_vault_amount, amm_pool_coin_vault_amount)
             } else {
+                // println!("only AMM");
                 let (amm_pool_pc_vault_amount, amm_pool_coin_vault_amount) =
                     Self::calc_total_without_take_pnl_no_orderbook(
                         amm_pc_vault.amount,
