@@ -15,6 +15,7 @@ use raydium_amm::{
     math::{CheckedCeilDiv, U128},
     processor,
     state::{AmmStatus, TargetOrders},
+    log::decode_ray_log,
 };
 
 use crate::raydium_amm::maths::{Calculator, SwapDirection};
@@ -187,8 +188,18 @@ pub fn simulate_calc_swap_token_amount(
     let mut message = Message::new(&[simulate_swap_instruction], Some(&user_owner));
     message.recent_blockhash = client.get_latest_blockhash()?;
     let txn = Transaction::new_unsigned(message);
-    let result = simulate_transaction(&client, &txn, false, CommitmentConfig::confirmed())?;
-    println!("Result: {:#?}", result);
+    let response_from_simulation = simulate_transaction(&client, &txn, false, CommitmentConfig::confirmed())?;
+    let logs = response_from_simulation.value.logs.unwrap();
+    if let Some(ray_log_entry) = logs.iter().find(|log| log.contains("ray_log:")) {
+        // Extract the ray_log value
+        if let Some(start) = ray_log_entry.find("ray_log:") {
+            let ray_log_value = &ray_log_entry[start + "ray_log: ".len()..];
+            let _decode_ray_log = decode_ray_log(ray_log_value);
+        }
+    } else {
+        println!("Transaction Simulation Failed");
+    }
+
     Ok(())
 }
 
