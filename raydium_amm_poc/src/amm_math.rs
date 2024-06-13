@@ -1,5 +1,14 @@
+use crate::raydium_amm::maths::{Calculator, SwapDirection};
+use crate::raydium_amm::processor::Processor;
+use crate::raydium_amm::state::AmmInfo;
 use anyhow::Result;
 use arrayref::array_ref;
+use raydium_amm::{
+    log::decode_ray_log,
+    math::{CheckedCeilDiv, U128},
+    processor,
+    state::{AmmStatus, TargetOrders},
+};
 use safe_transmute::{to_bytes::transmute_to_bytes, transmute_one_pedantic};
 use solana_client::rpc_client::RpcClient;
 use solana_program::{
@@ -9,18 +18,11 @@ use solana_program::{
 use solana_sdk::{
     commitment_config::CommitmentConfig, message::Message, pubkey::Pubkey, transaction::Transaction,
 };
-use spl_token::state::Account;
-
-use raydium_amm::{
-    math::{CheckedCeilDiv, U128},
-    processor,
-    state::{AmmStatus, TargetOrders},
-    log::decode_ray_log,
+use spl_associated_token_account::instruction::create_associated_token_account_idempotent;
+use spl_token::{
+    state::{Account, Mint},
+    ID,
 };
-
-use crate::raydium_amm::maths::{Calculator, SwapDirection};
-use crate::raydium_amm::processor::Processor;
-use crate::raydium_amm::state::AmmInfo;
 
 use crate::rpc::{get_account, get_multiple_accounts, simulate_transaction};
 use crate::utils::load_amm_keys;
@@ -32,7 +34,7 @@ use crate::{
 
 pub const TEN_THOUSAND: u64 = 10000;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct CalculateResult {
     pub pool_pc_vault_amount: u64,
     pub pool_pc_decimals: u64,
@@ -41,6 +43,13 @@ pub struct CalculateResult {
     pub pool_lp_amount: u64,
     pub swap_fee_numerator: u64,
     pub swap_fee_denominator: u64,
+}
+
+#[derive(Clone, Debug)]
+pub struct PoolState {
+    pub pool: CalculateResult,
+    pub pool_amm_keys: AmmKeys,
+    pub pool_market_keys: MarketPubkeys,
 }
 
 // pool_vault_amount = vault_amount + open_orders.native_total + partial filled without consumed - amm.need_take
@@ -174,6 +183,24 @@ pub fn simulate_calc_swap_token_amount(
     other_amount_threshold: u64,
     swap_base_in: bool,
 ) -> Result<()> {
+    let create_pc_ata_ix: solana_sdk::instruction::Instruction =
+        create_associated_token_account_idempotent(
+            &user_owner,
+            &user_owner,
+            &*market_keys.pc_mint,
+            // &Pubkey::from_str(token_program_id)?,
+            &ID,
+        );
+
+    let create_coin_ata_ix: solana_sdk::instruction::Instruction =
+        create_associated_token_account_idempotent(
+            &user_owner,
+            &user_owner,
+            &*&market_keys.coin_mint,
+            // &Pubkey::from_str(token_program_id)?,
+            &ID,
+        );
+
     let simulate_swap_instruction = swap(
         amm_program,
         amm_keys,
@@ -185,10 +212,15 @@ pub fn simulate_calc_swap_token_amount(
         other_amount_threshold,
         swap_base_in,
     )?;
-    let mut message = Message::new(&[simulate_swap_instruction], Some(&user_owner));
+    let mut message = Message::new(
+        &[create_pc_ata_ix,create_coin_ata_ix, simulate_swap_instruction],
+        Some(&user_owner),
+    );
     message.recent_blockhash = client.get_latest_blockhash()?;
     let txn = Transaction::new_unsigned(message);
-    let response_from_simulation = simulate_transaction(&client, &txn, false, CommitmentConfig::confirmed())?;
+    let response_from_simulation =
+        simulate_transaction(&client, &txn, false, CommitmentConfig::confirmed())?;
+    // println!("reponse {:#?}", response_from_simulation);
     let logs = response_from_simulation.value.logs.unwrap();
     if let Some(ray_log_entry) = logs.iter().find(|log| log.contains("ray_log:")) {
         // Extract the ray_log value
@@ -235,7 +267,7 @@ pub fn load_state(
     client: &RpcClient,
     amm_program_key: &Pubkey,
     amm_pool_key: &Pubkey,
-) -> Result<CalculateResult> {
+) -> Result<PoolState> {
     let amm_info: AmmInfo = get_account::<AmmInfo>(&client, &amm_pool_key)?.unwrap();
     let amm_keys: AmmKeys = load_amm_keys(&amm_program_key, &amm_pool_key, &amm_info).unwrap();
     let market_keys: MarketPubkeys =
@@ -249,7 +281,11 @@ pub fn load_state(
         &amm_info,
     )?;
 
-    Ok(calculate_result)
+    Ok(PoolState {
+        pool: calculate_result,
+        pool_amm_keys: amm_keys,
+        pool_market_keys: market_keys,
+    })
 }
 
 pub fn max_amount_with_slippage(input_amount: u64, slippage_bps: u64) -> u64 {
@@ -348,18 +384,28 @@ pub fn swap_with_slippage(
     Ok(other_amount_threshold)
 }
 
-pub fn calc_coin_in_pc(
-    state: &CalculateResult
-) -> Result<f64> {
+pub fn calc_coin_in_pc(pool: &CalculateResult) -> Result<f64> {
     // pc_amount * pc_price = coin_amount * coin_price
     // coin_price = pc_price * (pc_amount / coin_amount)
-    
-    Ok((state.pool_pc_vault_amount as f64) / 10_f64.powf(state.pool_pc_decimals as f64) / (state.pool_coin_vault_amount as f64) * 10_f64.powf(state.pool_coin_decimals as f64))
+
+    Ok((pool.pool_pc_vault_amount as f64)
+        / 10_f64.powf(pool.pool_pc_decimals as f64)
+        / (pool.pool_coin_vault_amount as f64)
+        * 10_f64.powf(pool.pool_coin_decimals as f64))
 }
 
-pub fn calc_pool_liquidity(
-    state: &CalculateResult
-) -> Result<f64> {
+pub fn calc_pool_liquidity(pool: &CalculateResult) -> Result<f64> {
     // liquidity = 2 * sol_amount * sol_price
-    Ok(2.0 * (state.pool_pc_vault_amount as f64) / 10_f64.powf(state.pool_pc_decimals as f64))
+    Ok(2.0 * (pool.pool_pc_vault_amount as f64) / 10_f64.powf(pool.pool_pc_decimals as f64))
+}
+
+pub fn calc_coin_market_cap(pool_state: &PoolState, client: &RpcClient) -> Result<f64> {
+    // market_cap = token_price * total_supply
+    // let price = calc_coin_in_pc(state).unwrap();
+
+    let account_data = client.get_account_data(&pool_state.pool_amm_keys.amm_coin_mint).unwrap();
+    let mint = Mint::unpack(&account_data).unwrap();
+    let supply = (mint.supply as f64) / (10_f64.powf(mint.decimals as f64));
+
+    Ok(supply)
 }

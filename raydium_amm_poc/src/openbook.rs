@@ -11,7 +11,7 @@ use std::{
     convert::{identity, TryFrom},
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct MarketPubkeys {
     pub market: Box<Pubkey>,
     pub req_q: Box<Pubkey>,
@@ -26,6 +26,8 @@ pub struct MarketPubkeys {
     pub coin_lot_size: u64,
     pub pc_lot_size: u64,
 }
+
+
 
 fn remove_dex_account_padding<'a>(data: &'a [u8]) -> Result<Cow<'a, [u64]>> {
     use serum_dex::state::{ACCOUNT_HEAD_PADDING, ACCOUNT_TAIL_PADDING};
@@ -71,7 +73,6 @@ pub fn get_keys_for_market<'a>(
             state.check_flags(true)?;
             state.inner
         } else {
-            println!("MarketStateV1");
             let state: MarketState =
                 transmute_one_pedantic::<MarketState>(transmute_to_bytes(&words))
                     .map_err(|e| e.without_src())?;
